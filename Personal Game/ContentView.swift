@@ -8,76 +8,117 @@
 import Foundation
 import SwiftUI
 
-struct GameView : View {
+struct GameView: View {
     @StateObject private var viewModel = GameViewModel()
-    let titleSize: CGFloat = 30
-    
+
     var body: some View {
-        VStack(spacing: 20) {
+        GeometryReader { geometry in
+            let screenWidth = geometry.size.width
+            let screenHeight = geometry.size.height
+
+            let columns = Int(viewModel.gridSize.width)
+            let rows = Int(viewModel.gridSize.height)
+
+            let tileWidth = screenWidth / CGFloat(columns)
+            let tileHeight = screenHeight / CGFloat(rows)
+
             ZStack {
-                ForEach(0..<Int(viewModel.gridSize.width), id: \.self) { x in
-                    ForEach(0..<Int(viewModel.gridSize.height), id: \.self) {
-                        y in Rectangle()
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                            .frame(width: titleSize, height: titleSize)
-                            .position(x: CGFloat(x) * titleSize + titleSize / 2, y: CGFloat(y) * titleSize + titleSize / 2)
+                // 🔲 Grid
+                ForEach(0..<columns, id: \.self) { x in
+                    ForEach(0..<rows, id: \.self) { y in
+                        Rectangle()
+                            .fill(viewModel.colorAt(x: x, y: y))
+                            .overlay(
+                                Rectangle()
+                                    .stroke(Color.gray.opacity(0.3), lineWidth: 0.5)
+                            )
+                            .frame(width: tileWidth, height: tileHeight)
+                            .position(
+                                x: CGFloat(x) * tileWidth + tileWidth / 2,
+                                y: CGFloat(y) * tileHeight + tileHeight / 2
+                            )
                     }
                 }
-                // Player
-                Circle()
-                    .fill(viewModel.player.color)
-                    .frame(width: titleSize, height: titleSize)
-                    .position(x: viewModel.player.position.x * titleSize + titleSize / 2, y: viewModel.player.position.y * titleSize + titleSize / 2)
-                    .overlay(
-                        viewModel.player.abilityActive ?
-                        AnyView(Text("💣").offset(y: -25)) : AnyView(EmptyView())
+
+                // 💣 Bombs (emoji)
+                ForEach(viewModel.bombs, id: \.self) { bomb in
+                    Text("💣")
+                        .font(.system(size: min(tileWidth, tileHeight) * 0.8))
+                        .position(
+                            x: bomb.x * tileWidth + tileWidth / 2,
+                            y: bomb.y * tileHeight + tileHeight / 2
+                        )
+                }
+
+                // 🧍 Player as emoji
+                Text("🤖")
+                    .font(.system(size: min(tileWidth, tileHeight)))
+                    .position(
+                        x: viewModel.player.position.x * tileWidth + tileWidth / 2,
+                        y: viewModel.player.position.y * tileHeight + tileHeight / 2
                     )
-            }
-            .frame(width: titleSize * viewModel.gridSize.width, height: titleSize * viewModel.gridSize.height)
-            .background(Color.black.opacity(0.05))
-            .cornerRadius(10)
-            
-            VStack {
-                HStack {
+
+                // 🎮 HUD - Buttons on top
+                VStack {
                     Spacer()
-                    Button("⬆️") {
-                        viewModel.movePlayer(.up)
+                    HStack {
+                        VStack(spacing: 8) {
+                            Button(action: { viewModel.movePlayer(.up) }) {
+                                Image(systemName: "arrow.up.circle.fill")
+                                    .resizable()
+                                    .frame(width: 50, height: 50)
+                            }
+                            HStack(spacing: 8) {
+                                Button(action: { viewModel.movePlayer(.left) }) {
+                                    Image(systemName: "arrow.left.circle.fill")
+                                        .resizable()
+                                        .frame(width: 50, height: 50)
+                                }
+                                Button(action: { viewModel.movePlayer(.right) }) {
+                                    Image(systemName: "arrow.right.circle.fill")
+                                        .resizable()
+                                        .frame(width: 50, height: 50)
+                                }
+                            }
+                            Button(action: { viewModel.movePlayer(.down) }) {
+                                Image(systemName: "arrow.down.circle.fill")
+                                    .resizable()
+                                    .frame(width: 50, height: 50)
+                            }
+                        }
+                        .foregroundColor(.blue)
+                        .padding(.leading, 20)
+
+                        Spacer()
+
+                        Button(action: {
+                            viewModel.plantBomb()
+                        }) {
+                            Text("💣")
+                                .font(.title)
+                                .padding(20)
+                                .background(Color.red)
+                                .foregroundColor(.white)
+                                .clipShape(Circle())
+                                .shadow(radius: 5)
+                        }
+                        .padding(.trailing, 20)
                     }
-                    Spacer()
-                }
-                HStack {
-                    Button("⬅️") {
-                        viewModel.movePlayer(.left)
-                }
-                    Spacer()
-                    Button("➡️") {
-                        viewModel.movePlayer(.right)
+                    .padding(.bottom, 30)
                 }
             }
-                HStack {
-                    Spacer()
-                    Button("⬇️") {
-                        viewModel.movePlayer(.down)
-                    }
-                Spacer()
-            }
+            .edgesIgnoringSafeArea(.all)
         }
-            .font(.largeTitle)
-            
-     //Ability
-            Button(action: {
-                viewModel.activateAbility()}) {
-                    Text("Activate Ability 💣")
-                        .padding()
-                        .background(Color.red)
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
-                }
-            Spacer()
-            }
-        .padding()
     }
 }
+
+
+
+
+
+
+
+
 
 #Preview {
     GameView()
