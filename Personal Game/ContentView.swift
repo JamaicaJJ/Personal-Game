@@ -72,6 +72,8 @@ struct GameView : View {
                         .background(Color.red)
                         .foregroundColor(.white)
                         .cornerRadius(12)
+                    
+                    
                 }
             Spacer()
             }
