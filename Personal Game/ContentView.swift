@@ -23,7 +23,6 @@ struct GameView: View {
             let tileHeight = screenHeight / CGFloat(rows)
 
             ZStack {
-                // 🔲 Grid
                 ForEach(0..<columns, id: \.self) { x in
                     ForEach(0..<rows, id: \.self) { y in
                         Rectangle()
@@ -40,7 +39,7 @@ struct GameView: View {
                     }
                 }
 
-                // 💣 Bombs (emoji)
+              
                 ForEach(viewModel.bombs, id: \.self) { bomb in
                     Text("💣")
                         .font(.system(size: min(tileWidth, tileHeight) * 0.8))
@@ -50,7 +49,7 @@ struct GameView: View {
                         )
                 }
 
-                // 🧍 Player as emoji
+                
                 Text("🤖")
                     .font(.system(size: min(tileWidth, tileHeight)))
                     .position(
@@ -58,7 +57,7 @@ struct GameView: View {
                         y: viewModel.player.position.y * tileHeight + tileHeight / 2
                     )
 
-                // 🎮 HUD - Buttons on top
+           
                 VStack {
                     Spacer()
                     HStack {
