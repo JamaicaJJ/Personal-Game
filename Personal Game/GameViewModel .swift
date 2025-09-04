@@ -31,7 +31,6 @@ class GameViewModel: ObservableObject {
         return totalCells == 0 ? 0 : (Double(paintedCells) / Double(totalCells)) * 100
     }
     
-    
     @Published var players: [Player] = []
     @Published var player = Player(position: CGPoint(x: 5, y: 5), color: .blue)
     @Published var gridColors: [[Color?]]
