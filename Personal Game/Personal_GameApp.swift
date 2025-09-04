@@ -8,10 +8,11 @@
 import SwiftUI
 
 @main
+
 struct Personal_GameApp: App {
     var body: some Scene {
         WindowGroup {
-            GameView()
+            LobbyView()
         }
     }
 }

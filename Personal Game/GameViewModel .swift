@@ -9,24 +9,63 @@ import Foundation
 import SwiftUICore
 import SwiftUI
 
-struct Bomb: Hashable {
-    let x: CGFloat
-    let y: CGFloat
-}
-
 class GameViewModel: ObservableObject {
-    let gridSize = CGSize(width: 20, height: 10)
+    @Published var timeRemaining: Int = 120
+    var gameTimer: Timer?
+    @Published var gameOver = false
+    @Published var lastAbilityUse: [GameViewModel.AbilityType: Date] = [:]
+   
+    let abilityCooldowns: [AbilityType: TimeInterval] = [
+        .bomb: 3.0,
+        .dash: 6.0
+    ]
+    
+    let gridSize = CGSize(width: 20, height: 20)
+    
+    var playerCoveragePercentage: Double {
+        let totalCells = Int(gridSize.width * gridSize.height)
+        let playerColor = player.color
 
+        let paintedCells = gridColors.flatMap { $0 }.filter { $0 == playerColor }.count
+
+        return totalCells == 0 ? 0 : (Double(paintedCells) / Double(totalCells)) * 100
+    }
+    
+    
+    @Published var players: [Player] = []
     @Published var player = Player(position: CGPoint(x: 5, y: 5), color: .blue)
     @Published var gridColors: [[Color?]]
     @Published var bombs: [Bomb] = []
 
-    init() {
+    let bombAbility = BombAbility()
+    let dashAbility = DashAbility()
+
+    @Published var selectedAbility: AbilityType = .bomb
+    @Published var isDashActive = false
+
+    enum AbilityType: String, CaseIterable, Identifiable {
+        case bomb = "Bomb"
+        case dash = "Dash"
+
+        var id: String { self.rawValue }
+    }
+
+    init(settings: PlayerSettings) {
+
         self.gridColors = Array(
             repeating: Array(repeating: nil, count: Int(gridSize.height)),
             count: Int(gridSize.width)
         )
+
+        self.player = Player(position: CGPoint(x: 5, y: 5), color: settings.color, emoji: settings.emoji)
+        self.players = [self.player]
+        self.selectedAbility = settings.ability
+        
+        DispatchQueue.main.async {
+               self.startTimer()
+           }
     }
+
 
     func colorAt(x: Int, y: Int) -> Color {
         if x < 0 || y < 0 || x >= Int(gridSize.width) || y >= Int(gridSize.height) {
@@ -36,17 +75,24 @@ class GameViewModel: ObservableObject {
     }
 
     func movePlayer(_ direction: Direction) {
-        var newPosition = player.position
-        switch direction {
-        case .up: newPosition.y -= 1
-        case .down: newPosition.y += 1
-        case .left: newPosition.x -= 1
-        case .right: newPosition.x += 1
-        }
+        let oldPosition = player.position
 
-        if isInBounds(newPosition) {
-            player.position = newPosition
-            paintTile(at: newPosition)
+        if selectedAbility == .dash && isDashActive {
+            dashAbility.dash(from: oldPosition, direction: direction, in: self)
+            isDashActive = false
+        } else {
+            var newPosition = oldPosition
+            switch direction {
+            case .up: newPosition.y -= 1
+            case .down: newPosition.y += 1
+            case .left: newPosition.x -= 1
+            case .right: newPosition.x += 1
+            }
+
+            if isInBounds(newPosition) {
+                player.position = newPosition
+                paintTile(at: newPosition)
+            }
         }
     }
 
@@ -62,40 +108,57 @@ class GameViewModel: ObservableObject {
             gridColors[x][y] = player.color
         }
     }
-
     
-    func plantBomb() {
-        let x = Int(player.position.x)
-        let y = Int(player.position.y)
-        let bomb = Bomb(x: CGFloat(x), y: CGFloat(y))
-        bombs.append(bomb)
+    func paintTilesAlongPath(from start: CGPoint, to end: CGPoint) {
+        let steps = max(abs(Int(end.x - start.x)), abs(Int(end.y - start.y)))
+        guard steps > 0 else { return }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            self.explodeBomb(bomb)
+        for i in 0...steps {
+            let x = Int(round(start.x + CGFloat(i) * (end.x - start.x) / CGFloat(steps)))
+            let y = Int(round(start.y + CGFloat(i) * (end.y - start.y) / CGFloat(steps)))
+            if x >= 0 && y >= 0 && x < Int(gridSize.width) && y < Int(gridSize.height) {
+                gridColors[x][y] = player.color
+            }
         }
     }
 
-    private func explodeBomb(_ bomb: Bomb) {
-        let centerX = Int(bomb.x)
-        let centerY = Int(bomb.y)
-
-        let explosionRadius = 1
-
-        for dx in -explosionRadius...explosionRadius {
-            for dy in -explosionRadius...explosionRadius {
-                let nx = centerX + dx
-                let ny = centerY + dy
-
-                if nx >= 0 && ny >= 0 &&
-                    nx < Int(gridSize.width) &&
-                    ny < Int(gridSize.height) {
-                    gridColors[nx][ny] = player.color
-                }
-            }
+    func plantBomb() {
+        bombAbility.activate(for: player, in: self)
+    }
+    
+    func canUseAbility(_ ability: AbilityType) -> Bool {
+        guard let lastUsed = lastAbilityUse[ability],
+              let cooldown = abilityCooldowns[ability] else {
+            return true
         }
+        return Date().timeIntervalSince(lastUsed) >= cooldown
+    }
 
-        if let index = bombs.firstIndex(of: bomb) {
-            bombs.remove(at: index)
+    func activateAbility() {
+        guard canUseAbility(selectedAbility) else {
+            print("Ablity \(selectedAbility.rawValue) is on cooldown")
+            return
+        }
+        lastAbilityUse[selectedAbility] = Date()
+        switch selectedAbility {
+        case .bomb:
+            plantBomb()
+        case .dash:
+            isDashActive = true
+        }
+    }
+   
+
+    func startTimer() {
+        gameTimer?.invalidate()
+        gameTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            if self.timeRemaining > 0 {
+                self.timeRemaining -= 1
+            } else {
+                self.gameTimer?.invalidate()
+                self.gameOver = true
+            }
         }
     }
 }
