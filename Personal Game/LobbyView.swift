@@ -5,9 +5,36 @@
 //  Created by David Santiago Jamaica Galvis on 8/26/25.
 //
 
-import Foundation
 import SwiftUI
-import MultipeerConnectivity
+import UIKit
+
+// Helper to convert SwiftUI Color <-> RGBA for networking (Codable-friendly)
+struct RGBAColor: Codable {
+    var r: Double
+    var g: Double
+    var b: Double
+    var a: Double
+}
+
+extension Color {
+    init(_ rgba: RGBAColor) {
+        self = Color(.sRGB, red: rgba.r, green: rgba.g, blue: rgba.b, opacity: rgba.a)
+    }
+    func toRGBA() -> RGBAColor {
+        let ui = UIColor(self)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        ui.getRed(&r, green: &g, blue: &b, alpha: &a)
+        return RGBAColor(r: r.double, g: g.double, b: b.double, a: a.double)
+    }
+}
+private extension CGFloat { var double: Double { Double(self) } }
+
+// A minimal, codable settings model for network exchange
+struct NetSettings: Codable {
+    var emoji: String
+    var ability: String
+    var color: RGBAColor
+}
 
 struct LobbyView: View {
     @StateObject private var mpManager = MultipeerManager()
@@ -15,18 +42,20 @@ struct LobbyView: View {
     @State private var selectedColor: Color = .blue
     @State private var selectedAbility: GameViewModel.AbilityType = .bomb
     @State private var selectedEmoji: String = "🤖"
+
     @State private var startGame = false
 
-    let availableEmojis = ["🤖", "👾", "🎮", "🛡️"]
+    // Remote settings arriving via networking
+    @State private var remoteSettings: PlayerSettings? = nil
+
+    let availableEmojis = ["🤖", "👾", "🎮", "🛡️", "🐉", "🧩"]
 
     var body: some View {
         NavigationView {
             VStack(spacing: 20) {
-                
+
                 // MARK: - Multiplayer Controls
-                Text("Multiplayer")
-                    .font(.headline)
-                
+                Text("Multiplayer").font(.headline)
                 HStack(spacing: 20) {
                     Button("Host Game") {
                         mpManager.startHosting()
@@ -45,21 +74,22 @@ struct LobbyView: View {
                     .clipShape(Capsule())
                 }
 
-                if mpManager.isConnected {
-                    Text("Connected to: \(mpManager.connectedPeer?.displayName ?? "Unknown")")
-                        .font(.subheadline)
-                        .foregroundColor(.green)
-                } else {
-                    Text("Not Connected")
-                        .font(.subheadline)
-                        .foregroundColor(.red)
+                Group {
+                    if mpManager.isConnected {
+                        Text("Connected to: \(mpManager.connectedPeer?.displayName ?? "Unknown")")
+                            .font(.subheadline)
+                            .foregroundColor(.green)
+                    } else {
+                        Text("Not Connected")
+                            .font(.subheadline)
+                            .foregroundColor(.red)
+                    }
                 }
 
                 Divider()
 
                 // MARK: - Player Settings
-                Text("Player Settings")
-                    .font(.title)
+                Text("Player Settings").font(.title)
 
                 ColorPicker("Select Color", selection: $selectedColor)
                     .padding()
@@ -69,50 +99,81 @@ struct LobbyView: View {
                         Text(ability.rawValue).tag(ability)
                     }
                 }
-                .pickerStyle(SegmentedPickerStyle())
+                .pickerStyle(.segmented)
                 .padding()
 
-                Text("Select Your Emoji")
-                    .font(.subheadline)
-
+                Text("Select Your Emoji").font(.subheadline)
                 HStack {
                     ForEach(availableEmojis, id: \.self) { emoji in
                         Text(emoji)
                             .font(.largeTitle)
                             .padding()
-                            .background(selectedEmoji == emoji ? Color.gray.opacity(0.3) : Color.clear)
+                            .background(selectedEmoji == emoji ? Color.gray.opacity(0.2) : Color.clear)
                             .clipShape(Circle())
-                            .onTapGesture {
-                                selectedEmoji = emoji
-                            }
+                            .onTapGesture { selectedEmoji = emoji }
                     }
                 }
 
                 Spacer()
 
-                // MARK: - Start Game Button
+                // MARK: - Start Game
                 NavigationLink(
                     destination: GameView(
-                        playerSettings: PlayerSettings(color: selectedColor, emoji: selectedEmoji, ability: selectedAbility)
-                        // You can pass mpManager here if GameView needs it
+                        localPlayerSettings: PlayerSettings(color: selectedColor,
+                                                            emoji: selectedEmoji,
+                                                            ability: selectedAbility),
+                        remotePlayerSettings: remoteSettings ?? PlayerSettings(color: .red, emoji: "👾", ability: .bomb),
+                        mpManager: mpManager
                     ),
                     isActive: $startGame
-                ) {
-                    Button("Start Game") {
-                        startGame = true
-                    }
-                    .padding()
-                    .background(mpManager.isConnected ? Color.green : Color.gray)
-                    .foregroundColor(.white)
-                    .clipShape(Capsule())
+                ) { EmptyView() }
+
+                Button(action: { startGame = true }) {
+                    Text("Start Game")
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(startEnabled ? Color.green : Color.gray)
+                        .foregroundColor(.white)
+                        .clipShape(Capsule())
                 }
-                .disabled(!mpManager.isConnected)
+                .disabled(!startEnabled)
+                .padding(.horizontal)
 
                 Spacer()
             }
             .padding()
+            .navigationTitle("Paint Battle Lobby")
         }
+        .onChange(of: mpManager.isConnected) { connected in
+            if connected { sendMySettings() }
+        }
+        .onChange(of: selectedColor) { _ in if mpManager.isConnected { sendMySettings() } }
+        .onChange(of: selectedAbility) { _ in if mpManager.isConnected { sendMySettings() } }
+        .onChange(of: selectedEmoji) { _ in if mpManager.isConnected { sendMySettings() } }
+        .onAppear {
+            // Receive settings from peer
+            mpManager.onReceiveSettings = { settings in
+                let ability = GameViewModel.AbilityType(rawValue: settings.ability) ?? .bomb
+                let color = Color(settings.color)
+                remoteSettings = PlayerSettings(color: color, emoji: settings.emoji, ability: ability)
+            }
+        }
+
+    }
+
+    private var startEnabled: Bool {
+        mpManager.isConnected && remoteSettings != nil
+    }
+
+    private func sendMySettings() {
+        let net = NetSettings(
+            emoji: selectedEmoji,
+            ability: selectedAbility.rawValue,
+            color: selectedColor.toRGBA()
+        )
+        mpManager.sendSettings(net)
     }
 }
+
 
 

@@ -7,26 +7,29 @@
 
 import Foundation
 import SwiftUICore
+import SwiftUI
 
 
 
-struct Player {
-    var id: UUID = UUID()
+struct Player: Identifiable, Hashable {
+    let id: UUID = UUID()
     var position: CGPoint
     var color: Color
+    var emoji: String
     var abilityActive: Bool = false
-    var emoji: String = "🤖" 
+}
+
+enum Direction: String, Codable, CaseIterable {
+    case up
+    case down
+    case left
+    case right
 }
 
 
-enum Direction {
-    case up , down , left , right
-}
-
-
-struct Bomb : Hashable {
-    let x : CGFloat
-    let y : CGFloat
+struct Bomb: Hashable {
+    let x: CGFloat
+    let y: CGFloat
 }
 
 struct PlayerSettings {
@@ -34,6 +37,7 @@ struct PlayerSettings {
     let emoji: String
     let ability: GameViewModel.AbilityType
 }
+
 
 
 

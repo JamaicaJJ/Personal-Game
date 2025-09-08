@@ -5,7 +5,6 @@
 //  Created by David Santiago Jamaica Galvis on 8/22/25.
 //
 
-import Foundation
 import SwiftUI
 
 protocol Ability {
@@ -13,16 +12,17 @@ protocol Ability {
     func activate(for player: Player, in viewModel: GameViewModel)
 }
 
+// MARK: - Dash Ability
 struct DashAbility: Ability {
     let name = "Dash"
     let dashDistance = 10
 
     func activate(for player: Player, in viewModel: GameViewModel) {
-      
+        viewModel.isDashActive = true
     }
 
     func dash(from position: CGPoint, direction: Direction, in viewModel: GameViewModel) {
-        var newPosition = position 
+        var newPosition = position
 
         switch direction {
         case .up: newPosition.y -= CGFloat(dashDistance)
@@ -34,17 +34,17 @@ struct DashAbility: Ability {
         newPosition.x = min(max(0, newPosition.x), viewModel.gridSize.width - 1)
         newPosition.y = min(max(0, newPosition.y), viewModel.gridSize.height - 1)
 
-        viewModel.player.position = newPosition
+        viewModel.localPlayer.position = newPosition
         viewModel.paintTilesAlongPath(from: position, to: newPosition)
     }
 }
+
+// MARK: - Bomb Ability
 struct BombAbility: Ability {
     let name = "Bomb"
 
     func activate(for player: Player, in viewModel: GameViewModel) {
-        let x = Int(player.position.x)
-        let y = Int(player.position.y)
-        let bomb = Bomb(x: CGFloat(x), y: CGFloat(y))
+        let bomb = Bomb(x: player.position.x, y: player.position.y)
         viewModel.bombs.append(bomb)
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
@@ -75,4 +75,5 @@ struct BombAbility: Ability {
         }
     }
 }
+
 
