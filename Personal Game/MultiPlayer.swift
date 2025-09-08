@@ -2,7 +2,7 @@
 //  MultiPlayer.swift
 //  Personal Game
 //
-//  Created by David Santiago Jamaica Galvis on 9/3/25.
+//  Created by David Santiago Jamaica Galvis on 8/30/25.
 //
 
 import Foundation
@@ -30,7 +30,7 @@ class MultipeerManager: NSObject, ObservableObject {
         session.delegate = self
     }
 
-    // MARK: - Hosting & Joining
+    // Hosting and Joining
     func startHosting() {
         advertiser = MCNearbyServiceAdvertiser(peer: myPeerID, discoveryInfo: nil, serviceType: serviceType)
         advertiser?.delegate = self
@@ -43,24 +43,24 @@ class MultipeerManager: NSObject, ObservableObject {
         browser?.startBrowsingForPeers()
     }
 
-    // MARK: - Send Data (Generic)
+    // Data
     private func send(_ message: [String: String]) {
         guard !session.connectedPeers.isEmpty else { return }
         do {
             let data = try JSONEncoder().encode(message)
             try session.send(data, toPeers: session.connectedPeers, with: .reliable)
         } catch {
-            print("⚠️ Error sending data: \(error.localizedDescription)")
+            print(" Error sending data: \(error.localizedDescription)")
         }
     }
 
-    // MARK: - Send Move
+    //  Send Move
     func sendMove(_ direction: Direction) {
         let message = ["type": "move", "dir": direction.rawValue]
         send(message)
     }
 
-    // MARK: - Send Ability ✅
+    //Send Ability
     func sendAbility(named ability: String) {
         let message = ["type": "ability", "ability": ability]
         send(message)
@@ -74,13 +74,12 @@ class MultipeerManager: NSObject, ObservableObject {
             ])
             try session.send(data, toPeers: session.connectedPeers, with: .reliable)
         } catch {
-            print("⚠️ Error sending settings: \(error.localizedDescription)")
+            print(" Error sending settings: \(error.localizedDescription)")
         }
     }
 
 }
 
-// MARK: - MCSessionDelegate
 extension MultipeerManager: MCSessionDelegate {
     func session(_ session: MCSession, peer peerID: MCPeerID, didChange state: MCSessionState) {
         DispatchQueue.main.async {
@@ -100,7 +99,7 @@ extension MultipeerManager: MCSessionDelegate {
                 }
             }
 
-        case "ability":   // ✅ Handles abilities from peers
+        case "ability":
             if let abilityName = message["ability"] {
                 DispatchQueue.main.async {
                     self.onReceiveAbility?(abilityName)
@@ -121,13 +120,11 @@ extension MultipeerManager: MCSessionDelegate {
         }
     }
 
-    // Required but unused delegate stubs
     func session(_ session: MCSession, didReceive stream: InputStream, withName streamName: String, fromPeer peerID: MCPeerID) {}
     func session(_ session: MCSession, didStartReceivingResourceWithName resourceName: String, fromPeer peerID: MCPeerID, with progress: Progress) {}
     func session(_ session: MCSession, didFinishReceivingResourceWithName resourceName: String, fromPeer peerID: MCPeerID, at localURL: URL?, withError error: Error?) {}
 }
 
-// MARK: - Advertiser Delegate
 extension MultipeerManager: MCNearbyServiceAdvertiserDelegate {
     func advertiser(_ advertiser: MCNearbyServiceAdvertiser, didReceiveInvitationFromPeer peerID: MCPeerID,
                     withContext context: Data?, invitationHandler: @escaping (Bool, MCSession?) -> Void) {
@@ -135,14 +132,13 @@ extension MultipeerManager: MCNearbyServiceAdvertiserDelegate {
     }
 }
 
-// MARK: - Browser Delegate
 extension MultipeerManager: MCNearbyServiceBrowserDelegate {
     func browser(_ browser: MCNearbyServiceBrowser, foundPeer peerID: MCPeerID, withDiscoveryInfo info: [String: String]?) {
         browser.invitePeer(peerID, to: session, withContext: nil, timeout: 10)
     }
 
     func browser(_ browser: MCNearbyServiceBrowser, lostPeer peerID: MCPeerID) {
-        print("⚠️ Lost peer: \(peerID.displayName)")
+        print(" Lost peer: \(peerID.displayName)")
     }
 }
 

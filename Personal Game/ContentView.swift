@@ -26,7 +26,7 @@ struct GameView: View {
         )
     }
 
-    // MARK: - UI Helpers
+    // Time
     private func formattedTime(_ totalSeconds: Int) -> String {
         let m = totalSeconds / 60
         let s = totalSeconds % 60
@@ -52,7 +52,6 @@ struct GameView: View {
         }, perform: {})
     }
 
-    // MARK: - Body
     var body: some View {
         GeometryReader { geo in
             let columns = Int(viewModel.gridSize.width)
@@ -96,7 +95,7 @@ struct GameView: View {
                                   y: rp.position.y * tileH + tileH / 2)
                 }
 
-                // HUD
+           
                 VStack {
                     HStack {
                         Spacer()

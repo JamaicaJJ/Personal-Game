@@ -11,14 +11,13 @@ import UIKit
 
 final class GameViewModel: ObservableObject {
 
-    // MARK: - Types
+    // Abilityes
     enum AbilityType: String, CaseIterable, Identifiable, Codable {
         case bomb = "Bomb"
         case dash = "Dash"
         var id: String { rawValue }
     }
 
-    // MARK: - Published State
     @Published var timeRemaining: Int = 120
     @Published var gameOver = false
 
@@ -31,7 +30,7 @@ final class GameViewModel: ObservableObject {
     @Published var selectedAbility: AbilityType
     @Published var isDashActive = false
 
-    // MARK: - Gameplay
+    // Game
     let gridSize = CGSize(width: 20, height: 20)
     private var gameTimer: Timer?
 
@@ -52,7 +51,7 @@ final class GameViewModel: ObservableObject {
     // Networking
     let mpManager: MultipeerManager
 
-    // MARK: - Init
+    // Init
     init(localSettings: PlayerSettings, remoteSettings: PlayerSettings, mpManager: MultipeerManager) {
         self.mpManager = mpManager
 
@@ -83,7 +82,6 @@ final class GameViewModel: ObservableObject {
         DispatchQueue.main.async { [weak self] in self?.startTimer() }
     }
 
-    // MARK: - Networking bindings
     private func wireMultipeerCallbacks() {
         mpManager.onReceiveMove = { [weak self] direction in
             self?.applyRemoteMove(direction)
@@ -93,7 +91,7 @@ final class GameViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Grid Helpers
+
     func colorAt(x: Int, y: Int) -> Color {
         guard x >= 0, y >= 0, x < Int(gridSize.width), y < Int(gridSize.height) else { return .clear }
         return gridColors[x][y] ?? .clear
@@ -121,7 +119,7 @@ final class GameViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Movement (Local)
+
     func handleMove(_ direction: Direction) {
         let old = localPlayer.position
 
@@ -142,16 +140,14 @@ final class GameViewModel: ObservableObject {
             }
         }
 
-        // tell peer
         mpManager.sendMove(direction)
     }
 
-    // MARK: - Movement (Remote)
+//Movement
     private func applyRemoteMove(_ direction: Direction) {
         guard var rp = remotePlayer else { return }
         let old = rp.position
 
-        // Note: remote dash is simulated on their device; we only get the resulting moves here.
         var new = old
         switch direction {
         case .up:    new.y -= 1
@@ -166,7 +162,7 @@ final class GameViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Abilities
+    // Abilities cooldowns
     private func canUseAbility(_ ability: AbilityType) -> Bool {
         guard let last = lastAbilityUse[ability], let cd = abilityCooldowns[ability] else { return true }
         return Date().timeIntervalSince(last) >= cd
@@ -182,7 +178,6 @@ final class GameViewModel: ObservableObject {
             mpManager.sendAbility(named: "bomb")
         case .dash:
             isDashActive = true
-            // (Optionally inform peer; not required for correctness because moves are sent)
             mpManager.sendAbility(named: "dashStart")
         }
     }
@@ -218,7 +213,6 @@ final class GameViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Timer
     func startTimer() {
         gameTimer?.invalidate()
         gameTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in

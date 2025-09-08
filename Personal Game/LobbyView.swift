@@ -8,7 +8,6 @@
 import SwiftUI
 import UIKit
 
-// Helper to convert SwiftUI Color <-> RGBA for networking (Codable-friendly)
 struct RGBAColor: Codable {
     var r: Double
     var g: Double
@@ -29,7 +28,6 @@ extension Color {
 }
 private extension CGFloat { var double: Double { Double(self) } }
 
-// A minimal, codable settings model for network exchange
 struct NetSettings: Codable {
     var emoji: String
     var ability: String
@@ -45,7 +43,6 @@ struct LobbyView: View {
 
     @State private var startGame = false
 
-    // Remote settings arriving via networking
     @State private var remoteSettings: PlayerSettings? = nil
 
     let availableEmojis = ["🤖", "👾", "🎮", "🛡️", "🐉", "🧩"]
@@ -53,8 +50,7 @@ struct LobbyView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 20) {
-
-                // MARK: - Multiplayer Controls
+//Multiplayer Buttoms
                 Text("Multiplayer").font(.headline)
                 HStack(spacing: 20) {
                     Button("Host Game") {
@@ -88,7 +84,7 @@ struct LobbyView: View {
 
                 Divider()
 
-                // MARK: - Player Settings
+                // Player Settings
                 Text("Player Settings").font(.title)
 
                 ColorPicker("Select Color", selection: $selectedColor)
@@ -116,7 +112,7 @@ struct LobbyView: View {
 
                 Spacer()
 
-                // MARK: - Start Game
+                // Start Game
                 NavigationLink(
                     destination: GameView(
                         localPlayerSettings: PlayerSettings(color: selectedColor,
@@ -151,7 +147,6 @@ struct LobbyView: View {
         .onChange(of: selectedAbility) { _ in if mpManager.isConnected { sendMySettings() } }
         .onChange(of: selectedEmoji) { _ in if mpManager.isConnected { sendMySettings() } }
         .onAppear {
-            // Receive settings from peer
             mpManager.onReceiveSettings = { settings in
                 let ability = GameViewModel.AbilityType(rawValue: settings.ability) ?? .bomb
                 let color = Color(settings.color)

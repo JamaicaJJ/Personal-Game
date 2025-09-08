@@ -12,7 +12,7 @@ protocol Ability {
     func activate(for player: Player, in viewModel: GameViewModel)
 }
 
-// MARK: - Dash Ability
+// Dash Ability
 struct DashAbility: Ability {
     let name = "Dash"
     let dashDistance = 10
@@ -39,7 +39,7 @@ struct DashAbility: Ability {
     }
 }
 
-// MARK: - Bomb Ability
+//  Bomb Ability
 struct BombAbility: Ability {
     let name = "Bomb"
 
